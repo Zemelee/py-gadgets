@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <!-- import CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <title>Chat</title>
+    <style>
+        .chat-box-outer {
+            width: 800px;
+            height: 350px;
+            margin: auto;
+            padding: auto;
+        }
+
+        .chat-box {
+            width: 700px;
+            height: 300px;
+            padding: auto;
+            margin: auto;
+            overflow: scroll;
+        }
+
+        .msg {
+            width: 350px;
+            height: fit-content;
+            padding: auto;
+            margin: auto;
+            margin-top: 10px;
+        }
+
+        #msg {
+            padding: 5px;
+            height: 40x;
+            border: 10px solide red;
+            width: 220px;
+            border-radius: 5px;
+        }
+
+        input:focus {
+            outline: 1px solid #9b8f8b;
+        }
+
+        .head {
+            display: block;
+        }
+
+        .head-left {
+            margin-left: 20px;
+        }
+
+        /* // 设置容器样式 */
+        #successTips {
+            border: 1px solid red;
+            position: absolute;
+            left: 48%;
+            top: -50px;
+            padding: 5px;
+            border-radius: 5px;
+            background-color: transparent;
+            color: transparent;
+        }
+
+        /* // 通过js动态加载类名实现元素的动画 */
+        .showAndHide {
+            animation: showTips 3000ms cubic-bezier(0.5, 0.5, 1, 1);
+        }
+
+        .img {
+            float: right;
+            margin-right: 10px;
+            margin-top: 8px;
+        }
+
+        .img::after {
+            clear: both;
+        }
+
+        /* // 动画实现 */
+        @keyframes showTips {
+            0% {
+                transform: translate(48%, 0px);
+                background-color: transparent;
+                color: transparent;
+            }
+
+            25% {
+                transform: translate(48%, 100px);
+                background-color: rgb(255, 0, 0);
+                color: #fff;
+            }
+
+            75% {
+                transform: translate(48%, 100px);
+                background-color: rgb(255, 0, 0);
+                color: #fff;
+            }
+
+            100% {
+                transform: translate(48%, 0px);
+                background-color: transparent;
+                color: transparent;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+
+<div id="app">
+
+
+    <div class="head">
+        <div class="head-left">
+            <span style="display: inline;margin-right: 20px;font-weight:600px;font-size:30px;">ChatRoom</span>
+            <el-button v-loading="loading" icon="el-icon-refresh" id="send" @click="motto()" circle></el-button>
+            <span class="img">
+                    <img src="https://picsum.photos/80/80?random">
+                </span>
+            <p style="width: fit-content;">${mottos}</p>
+
+        </div>
+    </div>
+
+    <el-divider content-position="left">当前用户:{{uname}}</el-divider>
+
+    <div class="chat-box-outer">
+        <div>
+            <el-card class="chat-box">
+                <div id="chatmsg">
+                </div>
+            </el-card>
+            <div class="msg">
+                <input @keydown.enter="send()" type="text" id="msg">
+                <el-popover placement="right" title="发送的消息均经加密处理：" width="200" trigger="hover"
+                            content="先计算消息哈希值H(m),再串接m|H(m),用服务器公钥对该整体进行加密得到PUb(m|H(m));然后用客户端私钥对消息签名得到sign(m);最后向服务端发送的数据为PUb(m|H(m))|sign(m)。">
+                    <el-button slot="reference">?</el-button>
+                </el-popover>
+            </div>
+        </div>
+    </div>
+    <div id="successTips">警告：此消息不安全！！！</div>
+</div>
+
+</body>
+
+
+<!-- import Vue before Element -->
+<script src="https://unpkg.com/vue@2/dist/vue.js"></script>
+<!-- import JavaScript -->
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+<!-- md5、RSA、签名-->
+<script src="https://cdn.bootcss.com/blueimp-md5/2.10.0/js/md5.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsencrypt/3.2.1/jsencrypt.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/jsrsasign/10.5.13/jsrsasign-all-min.min.js"></script>
+<script>
+    //获取时分秒
+    const getNowDate = () => {
+        var date = new Date();
+        var sign2 = ":";
+        var hour = date.getHours(); // 时
+        var minutes = date.getMinutes(); // 分
+        var seconds = date.getSeconds() //秒
+        // 给一位数的数据前面加 “0”
+        if (hour >= 0 && hour <= 9) {
+            hour = "0" + hour;
+        }
+        if (minutes >= 0 && minutes <= 9) {
+            minutes = "0" + minutes;
+        }
+        if (seconds >= 0 && seconds <= 9) {
+            seconds = "0" + seconds;
+        }
+        return hour + sign2 + minutes + sign2 + seconds;
+    }
+    //主动连接websocket
+    ws = new WebSocket('ws://192.168.3.5:8888/chatroom')
+    console.log("msg.value:", msg.value);
+
+    // 弹出提示
+    function showTips() {
+        document.querySelector('#successTips').className = 'showAndHide';
+        let timer = setTimeout(() => {
+            document.querySelector('#successTips').className = '';
+        }, 2000)
+        // clearTimeout(timer);
+    }
+
+    ws.onclose = function (e) {
+        console.error('websocket 断开');
+        console.log(e.code + ' ' + e.reason + ' ' + e.wasClean);
+    }
+    // 服务端的公钥
+    // var publicKey_server_verify = "-----BEGIN PUBLIC KEY-----MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDmaZl9cf9Z6RhGeLL1fgI4HuRPoS3IfkQF81Vlxf6NLrII5XEIWDyLHUyAiKpbOWdeup6Ra8btwTfMO5Jqa3eG4wKNKWoFNboTBtutriq9QRdfj3BQJjNieIAYN9Mykfxqkqh9+lEvjcm5MULeZRPkT4TjroEDiftegm2AYOOyPwIDAQAB-----END PUBLIC KEY-----"
+    // var public_server_verify =  new JSEncrypt();
+    // var public_server_verify = public_server_verify.setPublicKey(publicKey_server_verify)
+
+    // 接收服务器发送的消息
+    ws.onmessage = function (e) {
+        console.log("e.data:", e.data);
+        // var sign_result = public_server_verify.verify("mayday",e.data,CryptoJS.MD5)
+        // console.log("验证签名：",sign_result);
+        if (e.data == "[lzm]:消息不安全,未予以展示！！" || e.data == "[lxy]:消息不安全,未予以展示！！") {
+            console.log("不安全！！");
+            showTips()
+        }
+        p = document.createElement('p')
+        // time = document.createTextNode(getNowDate())
+
+        time = getNowDate()
+        console.log("time:", time);
+        p = document.createElement('p')
+        p.innerHTML = time.toString() + "—" + e.data
+        p.className = "single_msg"
+        p.setAttribute('style', 'height: 15px;margin:5px');
+        chatmsg.appendChild(p)
+    }
+
+
+    var app = new Vue({
+        delimiters: ['${', '}'], // 这句可以指定 ${} 为插值表达式的新符号
+        el: '#app',
+        data: function () {
+            return {
+                // 服务端的公钥
+                publicKey_server: "-----BEGIN PUBLIC KEY-----MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDmaZl9cf9Z6RhGeLL1fgI4HuRPoS3IfkQF81Vlxf6NLrII5XEIWDyLHUyAiKpbOWdeup6Ra8btwTfMO5Jqa3eG4wKNKWoFNboTBtutriq9QRdfj3BQJjNieIAYN9Mykfxqkqh9+lEvjcm5MULeZRPkT4TjroEDiftegm2AYOOyPwIDAQAB-----END PUBLIC KEY-----",
+                // 服务端私钥
+                privateKey_server: "-----BEGIN RSA PRIVATE KEY-----MIICXgIBAAKBgQDmaZl9cf9Z6RhGeLL1fgI4HuRPoS3IfkQF81Vlxf6NLrII5XEIWDyLHUyAiKpbOWdeup6Ra8btwTfMO5Jqa3eG4wKNKWoFNboTBtutriq9QRdfj3BQJjNieIAYN9Mykfxqkqh9+lEvjcm5MULeZRPkT4TjroEDiftegm2AYOOyPwIDAQABAoGAbVo9yf8R+Rp69msvR/qLVBY5Nh+hSm++mfJgG8Kpqli4jydRi2vRJBb+KVxzOYNXb2pzekHj8g/LCwdU2GPzn+7R5sqEegf1oL+om7XQM7Ny4dXvqWhBvaiA1I0Bsj9m2MevOGRH9AtQTa3hUlbYvmP6toi2Tg8ewXfmMTlHodUCQQDyccQ8YaphQkKdy/WTt7CQfEYHVjaGoURkYg0ZauXHqNc0sngHd5rzKMLtOUBvEjHuy1/k01Ra7q2VV2uAwvvrAkEA80udNsSrkYLKv9/qwDjrwx2ibJqE4o3d+g4ob/22OB4ZnJqgRrVhM6pXPbqTsSHlochQMvlBXA5R7nnUw3px/QJBAMcqanjoCp2nXy5eNTnKdwPa83RngJeMt7B3VCeDR4yDyXcC/dO0j9gdrjRPCf20xsxSyk4ixXOGC5dZn3jBtU0CQQCAj9lQopZiuvF2eNVso+d5YER/DRvhN8QvqaGWpEPQ3Z79EPxWwOvPSFj3Zos608WrOtWeSfZOtcZ3tOtILIDlAkEA3iA8eaJto/aRSzpS1Q/30G7d+gv85yWk1dQD1y6hRVB9BQkbVw3mrjkn21UEWXaspzSXkeTzMAuVzQiu4UQUbg==-----END RSA PRIVATE KEY-----",
+                //客户端公钥
+                publicKey_client: "-----BEGIN PUBLIC KEY-----MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDOViauny7DuRhO5GgtMC1kOizaQrBGRv6NrbhuIS+YoxMuf1mma1dBOZ7gd5fEDAxW2/S6jYzVI4vi33w8Z9K//HTMXnyBmerzRKEPFrP55YijltoE6eIOYCo0iuuG00ZvIS/QgXonrIZ/P4Qn4Nip89uMMo9G6EdW5vswyowvwQIDAQAB-----END PUBLIC KEY-----",
+                // 客户端私钥
+                privateKey_client: "-----BEGIN RSA PRIVATE KEY-----MIICWwIBAAKBgQDOViauny7DuRhO5GgtMC1kOizaQrBGRv6NrbhuIS+YoxMuf1mma1dBOZ7gd5fEDAxW2/S6jYzVI4vi33w8Z9K//HTMXnyBmerzRKEPFrP55YijltoE6eIOYCo0iuuG00ZvIS/QgXonrIZ/P4Qn4Nip89uMMo9G6EdW5vswyowvwQIDAQABAoGAOGOt/aIOPzoaDRF58QOOHCqT8HAySXqEfcbAtQRHxDCpANeX8hW6yl4Lb+/vH4plYuWI2+TsXKFyzOVjyARdwVDaaSz9Nod5xfgxfshiXbkWQ8lF6jnx0KY/gTP3xowN9iMtWaZ6bapqZ8b9lU1wxx/sAaJMpU5JhzRI8XaNtDsCQQDPMIAKoGIgf10IcEnle51BPtw4DWyyWH6+38eZ9i2jZklwAOLNlVc8W/B1mqQTn50c6MKlZjkx4KCLSzavjf9HAkEA/vI2HC6S01tB7wsAJ2CJ7kNn4iioXtCRm9fATNQuOx/QX5yW0PVFWF/BMDfozDbKd0Roidjz1AxB4oG8EMGstwJAAWQZ9/hLsFwqi7v1Qw0paR6668VrTWc6sp1eAbKda9Nr+syGuUqfY1BatO9s2pTfwSnu5J1jFOqlKUo/+73AUQJAd34VCH53yOKD88NnLg2ceHVVcnX1/IKrTK0B78CfbozJwJaHRac/+lzfEneSAG1J1j7U9I8gMWoRU1XVTNFJ3wJAV3CWz7UQFfnrRsEX61Tb11G+tBBNWwC5WlUDR3Cji6tZPw4naUq6xS/4Jd4dTJmIrtEbPszepw4AzSZMPeMFSg==-----END RSA PRIVATE KEY-----",
+                msg: document.getElementById('msg'),
+                encrypt_client_public: "",
+                decrypt_client_public: "",
+                encrypt_client_private: "",
+                decrypt_client_private: "",
+                encrypt_server_public: "",
+                decrypt_server_public: "",
+                encrypt_server_private: "",
+                decrypt_server_private: "",
+                signature: "",
+                verified: "",
+                mottos: "",//建议
+                loading: false,//建议加载动画布尔值
+            }
+        },
+
+        created: function () {
+            this.motto()
+            //主动连接websocket
+            ws = new WebSocket('ws://192.168.3.5:8888/chatroom')
+            this.encrypt_client_public = new JSEncrypt(),  // 实例化对象
+                this.decrypt_client_public = new JSEncrypt(),  // 实例化对象
+                this.encrypt_client_private = new JSEncrypt(),  // 实例化对象
+                this.decrypt_client_private = new JSEncrypt(), // 实例化对象
+
+                this.encrypt_server_public = new JSEncrypt(),  // 实例化对象
+                this.decrypt_server_public = new JSEncrypt(),  // 实例化对象
+                this.encrypt_server_private = new JSEncrypt(),  // 实例化对象
+                this.decrypt_server_private = new JSEncrypt(), // 实例化对象
+                //客户端
+                this.encrypt_client_public.setPublicKey(this.publicKey_client),  // 设置加密公钥
+                this.decrypt_client_public.setPublicKey(this.publicKey_client),  // 设置解密公钥
+                this.encrypt_client_private.setPrivateKey(this.privateKey_client),  // 设置加密私钥
+                this.decrypt_client_private.setPrivateKey(this.privateKey_client)  // 设置解密私钥
+            //服务器
+            this.encrypt_server_public.setPublicKey(this.publicKey_server),  // 设置加密公钥
+                this.decrypt_server_public.setPublicKey(this.publicKey_server),  // 设置解密公钥
+                this.encrypt_server_private.setPrivateKey(this.privateKey_server),  // 设置加密私钥
+                this.decrypt_server_private.setPrivateKey(this.privateKey_server)  // 设置解密私钥
+            //签名验证
+            this.signature = this.encrypt_client_private.sign("mayday", CryptoJS.MD5, "md5");  //客户端私钥加签
+            console.log("mayday的signature:", this.signature);
+            this.verified = this.decrypt_client_public.verify("mayday", this.signature, CryptoJS.MD5); //客户端公钥验签
+            console.log("signature的verified:", this.verified);
+
+        },
+        watch: {},
+
+        methods: {
+            //客户端私钥签名函数
+            sign_c: function (plaintext) {
+                //签名验证
+                signature1 = this.encrypt_client_private.sign(plaintext, CryptoJS.MD5, "md5");  //客户端私钥加签
+                return signature1
+            },
+            //客户端公钥验签函数
+            verify_c: function (plaintext, signature) {
+                this.verified = this.decrypt_client_public.verify(plaintext, signature, CryptoJS.MD5); //客户端公钥验签
+                return this.verified
+            },
+
+            send: function () {
+                console.log("服务端公钥加密↓");
+                msg_md5 = md5(msg.value);
+                temp = msg.value + "|" + msg_md5
+                console.log("temp:", temp);
+                message1 = this.encrypt_server_public.encrypt(temp);
+                console.log("message1:", message1);
+                console.log("客户端私钥签名↓");
+                message2 = this.sign_c(msg.value)
+                console.log("message2:", message2);
+                ws.send(message1 + "|" + message2)//PUb(m|H(m))|sign(m)
+                this.$message({
+                    message: '发送成功',
+                    type: 'success',
+                    duration: 1100,
+                    showClose: true
+                });
+                msg.value = ''
+            },
+
+            robot: function () {
+                fetch('http://api.qingyunke.com/api.php?key=free&appid=0&msg=你好', {
+                    method: 'GET',
+                    mode: 'no-cors',
+                }).then(res => {
+                    console.log(res);
+                })
+
+            },
+
+            motto: function () {
+                this.loading = true
+                //获取mottos，将mottos赋值
+                fetch('https://api.adviceslip.com/advice')
+                    .then(response => response.json().then(json => ({json, response})))
+                    .then(({json, response}) => {
+                        if (!response.ok) {
+                            console.log("error:", Promise.reject(json));
+                        }
+                        console.log(json);
+                        this.mottos = json.slip.advice;
+                    })
+                    .then(response => response, error => error);
+                var that = this;
+                setTimeout(() => {
+                    that.loading = false
+                }, 800)
+
+            }
+        },
+
+    })
+
+    console.log(app);
+
+</script>
+
+
+</html>

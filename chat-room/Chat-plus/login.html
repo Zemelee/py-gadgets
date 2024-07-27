@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <!-- import CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <title>Login</title>
+    <style>
+        .login-form {
+            width: 400px;
+            height: 300px;
+            /* border: 1px solid red; */
+            margin: 100px auto;
+        }
+
+        .username,
+        .password {
+            padding: 5px;
+            width: 180px;
+            border-radius: 5px;
+        }
+        input:focus {
+            outline: 1px solid #9b8f8b;
+        }
+    </style>
+</head>
+
+<body>
+    <h2>Login</h2>
+    <hr>
+    <div id="app">
+        <el-card shadow="always" class="login-form">
+            <h2>welcome to security system</h2>
+            <form action="" method="post">
+                <p>username: <input class="username" type="text" name="username"> </p>
+                <p>password: <input class="password" type="password" name="password"> </p>
+                <p>
+                    <el-input type="submit" value="login" style="width: 100px;"/>
+                </p>
+            </form>
+        </el-card>
+
+    </div>
+
+
+</body>
+
+
+<script src="https://unpkg.com/vue@2/dist/vue.js"></script>
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+
+
+<script>
+    new Vue({
+        el: '#app',
+        data: function () {
+            return {
+
+            }
+        }
+    })
+</script>
+
+</html>
